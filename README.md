@@ -2,12 +2,11 @@
 Simple tool to control your device through ADB. Useful to retrieve data for broken devices.
 Supports touches, swipes and keys input.
 
-[**DOWNLOAD**](https://github.com/MajeurAndroid/Adb-Remote-Screen/releases/download/2.0/AdbRemoteScreen.zip)
+[**DOWNLOAD**](https://github.com/wintersandroid/Adb-Remote-Screen/releases/download/2.1/AdbRemoteScreen-2.1.jar)
 
 ![alt tag](https://raw.githubusercontent.com/MajeurAndroid/Adb-Remote-Screen/master/web_demo.png)
 
 ### How to use
-First unzip the downloaded file anywhere you want. "local.properties" and "AdbRemoteScreen.jar" files **must** be in the same folder.
 AdbRemoteScreen needs ADB to work. You must provide an adb binary path in the local.properties file. (Or as an argument if you are running jars from command line)
 
 ###### From UI:
@@ -17,14 +16,14 @@ Right click on jar file > open with > Oracle Java X Runtime or OpenJDK X Runtime
 ###### In command line :
 ```shell
 cd path/to/jar/file
-java -jar AdbRemoteScreen.jar
+java -jar AdbRemoteScreen-2.1.jar
 #or
 java -jar AdbRemoteScreen.jar /path/to/adb/binary
 ```
 
 ### New features in 2.1
 - Works in Windows
-- Defaults for config file.
+- Defaults for config file if not found.
 - Screenshots are now retrieved directly from device to computer's RAM through adb shell stream
 - Support for multiple connected devices
 - Added keys input support (all keys supported by Android are available)
