@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Java Launch",
+            "program": "java",
+            "args": ["-jar","target/AdbRemoteScreen-1.0-SNAPSHOT.jar"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}",
+            "environment": [],
+            "externalConsole": false
+        }
+    ]
+}

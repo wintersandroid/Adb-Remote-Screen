@@ -13,7 +13,9 @@ package com.majeur.ars;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.FileInputStream;
 import java.util.Properties;
+import java.io.File;
 
 public class Config {
 
@@ -23,15 +25,25 @@ public class Config {
     private int screenHeight;
     private int scale;
 
-    public void load(InputStream in) throws IOException {
-        Properties properties = new Properties();
-        properties.load(in);
+    public void load(File file)  {
+        try {
+            InputStream in = new FileInputStream(file);
+            Properties properties = new Properties();
+            properties.load(in);
 
-        adbCommand = properties.getProperty("adbCommand");
-        screenshotDelay = Long.parseLong(properties.getProperty("screenshotDelay"));
-        screenWidth = Integer.valueOf(properties.getProperty("screenWidth"));
-        screenHeight = Integer.valueOf(properties.getProperty("screenHeight"));
-        scale = Integer.valueOf(properties.getProperty("scale"));
+            adbCommand = properties.getProperty("adbCommand");
+            screenshotDelay = Long.parseLong(properties.getProperty("screenshotDelay"));
+            screenWidth = Integer.valueOf(properties.getProperty("screenWidth"));
+            screenHeight = Integer.valueOf(properties.getProperty("screenHeight"));
+            scale = Integer.valueOf(properties.getProperty("scale"));
+                
+        } catch (Exception e) {
+            adbCommand = "adb";
+            screenshotDelay = 500;
+            screenWidth = 480;
+            screenHeight = 800;
+            scale = 50;
+        }
     }
 
     public String getAdbCommand() {

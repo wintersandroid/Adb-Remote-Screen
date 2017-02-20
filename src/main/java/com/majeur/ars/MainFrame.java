@@ -57,12 +57,7 @@ public class MainFrame extends JFrame implements OnDevicesChangedListener {
         }
 
         Config config = new Config();
-        try {
-            config.load(new FileInputStream(configFile));
-        } catch (IOException e) {
-            e.printStackTrace();
-            return;
-        }
+        config.load(configFile);
 
         setTitle(Strings.WINDOW_TILE_REGULAR);
         pack();

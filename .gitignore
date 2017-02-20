@@ -5,4 +5,4 @@ screen.png
 .idea
 *.iml
 *.class
-
+/target/
