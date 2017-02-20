@@ -2,7 +2,6 @@ package com.majeur.ars;
 
 import java.awt.Dimension;
 import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.KeyEvent;
@@ -12,240 +11,274 @@ import java.awt.event.MouseListener;
 import java.awt.geom.AffineTransform;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 
-import javax.imageio.ImageIO;
-import javax.management.loading.PrivateMLet;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
-import org.omg.CORBA.PRIVATE_MEMBER;
-
 public class ScreenPanel extends JPanel implements MouseListener, KeyListener {
-	
-	private static final long MIN_SCREEN_REFRESH_INTERVAL = 250;
-	private AdbHelper mAdbHelper;
-	private BufferedImage mImage;
-	private int mScreenWidth = 0, mScreenHeight = 0;
-	private double mRatio;
-	private boolean mFirstDraw = true, mUpdateFrame = false;
-	private double mScale = 1;
-	private int mDownX, mDownY;
-	private long mSwipeStartTime;
-	private boolean mLandscape = false;
-	
-	private boolean mPaused;
 
-	protected Thread mUpdateThread;
+    private static final long serialVersionUID = 1L;
 
-	public ScreenPanel(AdbHelper helper) {
-		mAdbHelper = helper;
-		addMouseListener(this);
-		addKeyListener(this);
+    private AdbHelper mAdbHelper;
+    private final long updateDelay;
+    private BufferedImage mImage;
+    private int mScreenWidth = 0, mScreenHeight = 0;
+    private double mRatio;
+    private boolean mFirstDraw = true, mUpdateFrame = false;
+    private double mScale;
+    private int mDownX, mDownY;
+    private long mSwipeStartTime;
+    private boolean mLandscape = false;
+    private boolean mPaused;
+    protected Thread mUpdateThread;
 
-		addComponentListener(new ComponentAdapter() {
-			@Override
-			public void componentHidden(ComponentEvent e) {
-				stopUpdate();
-			}
+    public ScreenPanel(AdbHelper helper, long updateDelay, int initialScale) {
+        mAdbHelper = helper;
+        this.updateDelay = updateDelay;
+        mScale = initialScale / 100.0;
+        addMouseListener(this);
+        addKeyListener(this);
 
-			@Override
-			public void componentResized(ComponentEvent e) {
-				requestFocus();
-				requestFocusInWindow();
-			}
-		});
-	}
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentHidden(ComponentEvent e) {
+                stopUpdate();
+            }
 
-	public void startUpdate() {
-		if (mPaused)
-			return;
-		
-		Logger.i("Start rendering device screen");
-		if (mUpdateThread != null && !mUpdateThread.isInterrupted())
-			stopUpdate();
+            @Override
+            public void componentResized(ComponentEvent e) {
+                requestFocus();
+                requestFocusInWindow();
+            }
+        });
+    }
 
-		mUpdateThread = new UpdateThread();
-		mUpdateThread.start();
-	}
+    public void startUpdate() {
+        if (mPaused) {
+            return;
+        }
 
-	public void stopUpdate() {
-		if (mUpdateThread == null)
-			return;
-		
-		Logger.i("Stop rendering device screen");
-		mUpdateThread.interrupt();
-		mUpdateThread = null;
-	}
-	
-	public void setPaused(boolean paused) {
-		mPaused = paused;
-		
-		if (paused)
-			stopUpdate();
-		else 
-			startUpdate();
-	}
+        Logger.i("Start rendering device screen");
+        if (mUpdateThread != null && !mUpdateThread.isInterrupted()) {
+            stopUpdate();
+        }
 
-	public void setScale(double scale) {
-		mScale = scale;
-		setPreferredSize(new Dimension((int) (mScreenWidth * scale),
-				(int) (mScreenHeight * scale)));
-		MainFrame mainFrame = (MainFrame) getTopLevelAncestor();
-		mainFrame.pack();
-	}
+        mUpdateThread = new UpdateThread(updateDelay);
+        mUpdateThread.start();
+    }
 
-	public void setLandscape(boolean b) {
-		mLandscape = b;
-		mUpdateFrame = true;
-	}
+    public void stopUpdate() {
+        if (mUpdateThread == null) {
+            return;
+        }
 
-	@Override
-	protected void paintComponent(Graphics g) {
-		super.paintComponent(g);
+        Logger.i("Stop rendering device screen");
+        mUpdateThread.interrupt();
+        mUpdateThread = null;
+    }
 
-		if (mImage != null) {
-			mScreenWidth = mLandscape ? mImage.getHeight() : mImage.getWidth();
-			mScreenHeight = mLandscape ? mImage.getWidth() : mImage.getHeight();
+    public void setPaused(boolean paused) {
+        mPaused = paused;
 
-			if (mFirstDraw) {
-				setScale(0.5);
-				mFirstDraw = false;
-			}
-			
-			if (mUpdateFrame) {
-				setScale(mScale);
-				mUpdateFrame = false;
-			}
+        if (paused) {
+            stopUpdate();
+        } else {
+            startUpdate();
+        }
+    }
 
-			int width = getWidth();
-			int height = getHeight();
+    public void setScale(double scale) {
+        mScale = scale;
+        setPreferredSize(new Dimension((int) (mScreenWidth * scale), (int) (mScreenHeight * scale)));
+        MainFrame mainFrame = (MainFrame) getTopLevelAncestor();
+        mainFrame.pack();
+    }
 
-			double ratioX = (double) width / (double) mScreenWidth;
-			double ratioY = (double) height / (double) mScreenHeight;
+    public void setLandscape(boolean b) {
+        mLandscape = b;
+        mUpdateFrame = true;
+    }
 
-			mRatio = Math.min(1, Math.min(ratioX, ratioY));
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
 
-			double scaledWidth = (double) mScreenWidth * mRatio;
-			double scaledHeight = (double) mScreenHeight * mRatio;
+        if (mImage != null) {
+            mScreenWidth = mLandscape ? mImage.getHeight() : mImage.getWidth();
+            mScreenHeight = mLandscape ? mImage.getWidth() : mImage.getHeight();
 
-			if (mLandscape) {
-				AffineTransform transform = new AffineTransform();
-				transform.rotate(Math.PI / 2, mImage.getWidth() / 2, mImage.getHeight() / 2);
-				AffineTransformOp op = new AffineTransformOp(transform, AffineTransformOp.TYPE_BILINEAR);
-				mImage = op.filter(mImage, null);
-			}
-			
-			g.drawImage(mImage, 0, 0, (int) scaledWidth, (int) scaledHeight, null);
-			
-		}
-	}
+            if (mFirstDraw) {
+                setScale(mScale);
+                mFirstDraw = false;
+            }
 
-	@Override
-	public void keyTyped(KeyEvent e) {
-		// TODO Auto-generated method stub
+            if (mUpdateFrame) {
+                setScale(mScale);
+                mUpdateFrame = false;
+            }
 
-	}
+            int width = getWidth();
+            int height = getHeight();
 
-	@Override
-	public void keyPressed(KeyEvent e) {
-		// TODO Auto-generated method stub
+            double ratioX = (double) width / (double) mScreenWidth;
+            double ratioY = (double) height / (double) mScreenHeight;
 
-	}
+            mRatio = Math.min(1, Math.min(ratioX, ratioY));
 
-	@Override
-	public void keyReleased(KeyEvent e) {
-		// TODO Auto-generated method stub
+            double scaledWidth = mScreenWidth * mRatio;
+            double scaledHeight = mScreenHeight * mRatio;
 
-	}
+            if (mLandscape) {
+                AffineTransform transform = new AffineTransform();
+                transform.rotate(Math.PI / 2, mImage.getWidth() / 2, mImage.getHeight() / 2);
+                AffineTransformOp op = new AffineTransformOp(transform, AffineTransformOp.TYPE_BILINEAR);
+                mImage = op.filter(mImage, null);
+            }
 
-	@Override
-	public void mouseClicked(MouseEvent e) {
-		mAdbHelper.performClick(e.getX() / mRatio, e.getY() / mRatio);
-	}
+            g.drawImage(mImage, 0, 0, (int) scaledWidth, (int) scaledHeight, null);
 
-	@Override
-	public void mousePressed(MouseEvent e) {
-		mDownX = e.getX();
-		mDownY = e.getY();
-		mSwipeStartTime = System.currentTimeMillis();
-	}
+        }
+    }
 
-	@Override
-	public void mouseReleased(MouseEvent e) {
-		int upX = e.getX(), upY = e.getY();
+    @Override
+    public void keyTyped(KeyEvent e) {
+        char c = e.getKeyChar();
 
-		int dx = (int) Math.abs(mDownX - upX);
-		int dy = (int) Math.abs(mDownY - upY);
+        if (c >= 'a' && c <= 'z') {
+            mAdbHelper.performInputKey(29 + c - 'a');
+        } else if (c >= 'A' && c <= 'Z') {
+            mAdbHelper.performInputKey(29 + c - 'A');
+        }
+    }
 
-		if (dx > 5 && dy > 5) {
-			long duration = System.currentTimeMillis() - mSwipeStartTime;
-			mAdbHelper.performSwipe(mDownX / mRatio, mDownY / mRatio, upX
-					/ mRatio, upY / mRatio, duration);
-		}
-	}
+    @Override
+    public void keyPressed(KeyEvent e) {
+        switch (e.getKeyCode()) {
+        case KeyEvent.VK_ENTER:
+            mAdbHelper.performInputKey(AndroidKey.ENTER);
+            return;
 
-	@Override
-	public void mouseEntered(MouseEvent e) {
-		// TODO Auto-generated method stub
+        case KeyEvent.VK_ESCAPE:
+            mAdbHelper.performInputKey(AndroidKey.BACK);
+            return;
 
-	}
+        case KeyEvent.VK_HOME:
+            mAdbHelper.performInputKey(AndroidKey.HOME);
+            return;
 
-	@Override
-	public void mouseExited(MouseEvent e) {
-		// TODO Auto-generated method stub
+        case KeyEvent.VK_BACK_SPACE:
+            mAdbHelper.performInputKey(AndroidKey.DEL);
+            return;
 
-	}
-	
-	private class UpdateThread extends Thread {
+        case KeyEvent.VK_UP:
+            mAdbHelper.performInputKey(AndroidKey.DPAD_UP);
+            return;
 
-		@Override
-		public void run() {
-			super.run();			
-			long previousFrameTime = System.currentTimeMillis();
-			
-			while (!Thread.interrupted()) {
-				long currentFrameTime = System.currentTimeMillis();
-				long dT = currentFrameTime - previousFrameTime;
-				previousFrameTime = currentFrameTime;
-				
-				if (LocalProperties.limitFrameRate && dT < MIN_SCREEN_REFRESH_INTERVAL) 
-					Utils.sleep(MIN_SCREEN_REFRESH_INTERVAL - dT);
+        case KeyEvent.VK_DOWN:
+            mAdbHelper.performInputKey(AndroidKey.DPAD_DOWN);
+            return;
 
-				mImage = mAdbHelper.retrieveScreenShot();
-				
-				if (mImage == null)
-					abort();
-				
-				repaintPanel();
-			}
-		}
-		
-		private void abort() {
-			interrupt();
-			SwingUtilities.invokeLater(new Runnable() {				
-				@Override
-				public void run() {
-					stopUpdate();					
-				}
-			});
-		}
-		
-		private void repaintPanel() {			
-			try {
-				SwingUtilities.invokeAndWait(new Runnable() {						
-					@Override
-					public void run() {
-						repaint();							
-					}
-				});
-			} catch (InvocationTargetException | InterruptedException e) {
-				abort();
-				e.printStackTrace();
-			}
-		}
-	}
+        case KeyEvent.VK_LEFT:
+            mAdbHelper.performInputKey(AndroidKey.DPAD_LEFT);
+            return;
+
+        case KeyEvent.VK_RIGHT:
+            mAdbHelper.performInputKey(AndroidKey.DPAD_RIGHT);
+            return;
+        }
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e) {
+    }
+
+    @Override
+    public void mouseClicked(MouseEvent e) {
+        mAdbHelper.performClick(e.getX() / mRatio, e.getY() / mRatio);
+    }
+
+    @Override
+    public void mousePressed(MouseEvent e) {
+        mDownX = e.getX();
+        mDownY = e.getY();
+        mSwipeStartTime = System.currentTimeMillis();
+    }
+
+    @Override
+    public void mouseReleased(MouseEvent e) {
+        int upX = e.getX(), upY = e.getY();
+
+        int dx = Math.abs(mDownX - upX);
+        int dy = Math.abs(mDownY - upY);
+
+        if (dx > 5 && dy > 5) {
+            long duration = System.currentTimeMillis() - mSwipeStartTime;
+            mAdbHelper.performSwipe(mDownX / mRatio, mDownY / mRatio, upX / mRatio, upY / mRatio, duration);
+        }
+    }
+
+    @Override
+    public void mouseEntered(MouseEvent e) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void mouseExited(MouseEvent e) {
+        // TODO Auto-generated method stub
+
+    }
+
+    private class UpdateThread extends Thread {
+
+        private final long updateDelay;
+
+        public UpdateThread(long updateDelay) {
+            this.updateDelay = updateDelay;
+        }
+
+        @Override
+        public void run() {
+            super.run();
+
+            while (!Thread.interrupted()) {
+                // give the device some time for other stuff
+                Utils.sleep(updateDelay);
+
+                mImage = mAdbHelper.retrieveScreenShot();
+
+                if (mImage == null) {
+                    abort();
+                }
+
+                repaintPanel();
+            }
+        }
+
+        private void abort() {
+            interrupt();
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    stopUpdate();
+                }
+            });
+        }
+
+        private void repaintPanel() {
+            try {
+                SwingUtilities.invokeAndWait(new Runnable() {
+                    @Override
+                    public void run() {
+                        repaint();
+                    }
+                });
+            } catch (InvocationTargetException | InterruptedException e) {
+                abort();
+                e.printStackTrace();
+            }
+        }
+    }
 
 }
