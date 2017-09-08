@@ -71,7 +71,7 @@ public class MainFrame extends JFrame implements OnDevicesChangedListener {
         mNoDeviceDialog = optionPane.createDialog(this, Strings.TITLE_NO_DEVICE);
         mNoDeviceDialog.setModal(false);
 
-        mAdbHelper = new AdbHelper(config.getAdbCommand());
+        mAdbHelper = new AdbHelper(config.getAdbCommand(), config.getScreenWidth(), config.getScreenHeight());
         mScreenPanel = new ScreenPanel(mAdbHelper, config.getScreenshotDelay(), config.getScale());
 
         mAdbHelper.registerDevicesChangedListener(this);
