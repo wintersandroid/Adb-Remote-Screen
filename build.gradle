@@ -1,0 +1,43 @@
+plugins {
+    id 'de.fuerstenau.buildconfig' version '1.1.4'
+}
+apply plugin: 'java'
+apply plugin: 'application'
+apply plugin: 'distribution'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+applicationName = 'Adb-Remote-Screen'
+mainClassName = 'com.majeur.ars.AdbRemoteScreen'
+version = '2.1'
+group = 'com.majeur.ars'
+ext.installDir = "${buildDir}/install/${applicationName}"
+
+buildConfig {
+}
+
+jar {
+    baseName = project.name
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    manifest {
+        attributes 'Main-Class': mainClassName
+    }
+}
+
+repositories {
+    jcenter()
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    // https://mvnrepository.com/artifact/com.android.tools.ddms/ddmlib
+    implementation group: 'com.android.tools.ddms', name: 'ddmlib', version: '25.3.0'
+}
+
+task deleteFiles(type: Delete) {
+    delete "${installDir}/lib/nl/"
+}
+
+installDist.dependsOn clean
+installDist.finalizedBy deleteFiles
